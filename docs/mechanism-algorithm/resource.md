@@ -4,7 +4,7 @@
 
 投票权、带宽和能量是TRON网络中的重要系统资源。其中投票权用于给超级代表投票；带宽是衡量保存在区块链数据库中的交易字节大小的单位，交易越大，消耗的带宽资源会越多。能量是衡量在TRON网络上TVM虚拟机执行特定操作所需的计算量的单位,由于智能合约交易都需要计算资源来执行，因此每笔智能合约交易都需要付费。
 
-下文我们把投票权也称为TP、带宽也称为Bandwidth Points，能量也称为Energy。
+下文我们把投票权也称为TRON Power(TP)、带宽也称为Bandwidth Points，能量也称为Energy。
 
 !!! note
     - 普通交易仅消耗Bandwidth points
@@ -14,7 +14,29 @@
 
 任何账户在给超级代表投票前，都需要先获得投票权，即TRON Power(TP)。投票权可以通过质押TRX来获取。质押TRX除了可以获得带宽或者能量外，还将同时获得投票权，选民质押1TRX，将获得1TP。关于如何质押请参考[在TRON网络上质押](#tron)章节。
 
-选民可以分批多次质押，多次质押获取到的投票权会被累加到选民账户内，选民可以通过`wallet/getaccountresource`接口查询账户拥有的投票权总数以及已使用的投票权数量。
+选民可以分批多次质押，多次质押获取到的投票权会被累加到选民账户内，选民可以通过[wallet/getaccount](../api/http.md/#walletgetaccount)接口查询账户拥有的投票权总数以及已使用的投票权数量。
+
++ 示例接口结果：
+```
+{
+    "address": "TBEJewE3MWBbW9t7F4s875yvMHrhqBAZfB",
+    "votes": [
+        {
+        "vote_address": "TFMehqCGCei9RrJLdM5eRFuwHY4CrYy6Xt",
+        "vote_count": 7003
+        },
+        {
+        "vote_address": "TE8dLwHkMrutMKULTZE41knERrT5XiLVeN",
+        "vote_count": 7003
+        },
+        {
+        "vote_address": "TYcvQx7rFuDgyauJmfxBxj7ppkAsSa3sJe",
+        "vote_count": 7003
+        }
+    ],
+...
+}
+```
 
 ## 带宽
 
@@ -22,15 +44,25 @@
 
 如一条交易的字节数为200，那么该交易需要消耗 200 Bandwidth Points。
 
-!!! note
-    由于网络中总质押资金以及账户的质押资金随时可能发生变化，因此账户拥有的 Bandwidth Points 不是固定值。
-
 ### 1. Bandwidth Points的来源
 
 Bandwidth Points的获取分两种：
 
-- 通过质押TRX获取的Bandwidth Points， 额度 = 为获取Bandwidth Points质押的TRX / 整个网络为获取Bandwidth Points质押的TRX 总额 * 43_200_000_000，也就是所有用户按质押的TRX数量平分固定额度的Bandwidth Points.
-- 每个账号每天有固定免费额度的带宽，为600。
+- 通过质押TRX获取的Bandwidth Points。
+- 每个账号每天有固定免费额度的带宽，目前为600，由61号提案控制。
+
+其中质押获取的带宽计算公式为:
+
+`NetLimit = FrozenBandwidthAmount / TotalNetWeight * TotalNetLimit`
+
+- FrozenBandwidthAmount: 为获取Bandwidth Points质押的TRX
+- TotalNetWeight: 整个网络为获取Bandwidth Points质押的TRX 总额
+- TotalNetLimit = 43_200_000_000
+
+也就是所有用户按质押的TRX数量平分固定额度的Bandwidth Points。
+
+!!! note
+    由于网络中总质押资金以及账户的质押资金随时可能发生变化，因此账户拥有的 Bandwidth Points 不是固定值。
 
 ### 2. Bandwith Points的消耗
 
@@ -46,14 +78,14 @@ Bandwidth Points是一个账户1天内能够使用的总字节数。一定时间
 1. 尝试消耗交易发起者质押获取的Bandwidth Points。如果交易发起者Bandwidth Points不足，则进入下一步
 2. 尝试消耗交易发起者的TRX，这部分烧掉0.1TRX
 
-如果交易是Token转账，Bandwidth Points消耗如下：
+如果交易是TRC-10 Token转账，Bandwidth Points消耗如下：
 
-1. 依次验证 发行Token资产总的免费Bandwidth Points是否足够消耗，转账发起者的Token剩余免费Bandwidth Points是否足够消耗，Token发行者质押TRX获取Bandwidth Points剩余量是否足够消耗。如果满足则扣除Token发行者质押获取的Bandwidth Points，任意一个不满足则进入下一步
+1. 依次验证发行Token资产总的免费Bandwidth Points是否足够消耗，转账发起者的Token剩余免费Bandwidth Points是否足够消耗，Token发行者质押TRX获取Bandwidth Points剩余量是否足够消耗。如果满足则扣除Token发行者质押获取的Bandwidth Points，任意一个不满足则进入下一步
 2. 尝试消耗交易发起者质押获取的Bandwidth Points。如果交易发起者Bandwidth Points不足，则进入下一步
 3. 尝试消耗交易发起者的免费Bandwidth Points。如果免费Bandwidth Points也不足，则进入下一步
 4. 尝试消耗交易发起者的TRX，交易的字节数 * 1000 sun
 
-如果交易普通交易，Bandwidth Points消耗如下：
+如果是其它交易，Bandwidth Points消耗如下：
 
 1. 尝试消耗交易发起者质押获取的Bandwidth Points。如果交易发起者Bandwidth Points不足，则进入下一步
 2. 尝试消耗交易发起者的免费Bandwidth Points。如果免费Bandwidth Points也不足，则进入下一步
@@ -61,7 +93,16 @@ Bandwidth Points是一个账户1天内能够使用的总字节数。一定时间
 
 ### 4. 带宽的自动恢复
 
-账户的免费带宽和质押TRX获取的带宽消耗后， 会在24小时内逐步恢复。
+账户的免费带宽和质押TRX获取的带宽消耗后，会在24小时内逐步恢复。
+其中每次计算质押剩余可用带宽的等价公式为：
+
+`AvailableNetUsage = NetLimit - LastUsage * (CurrentTime - LastUseTime) / RecoveryWindow(24h)`
+
+当 `CurrentTime - LastUseTime >= 24h` 时 `AvailableNetUsage = NetLimit`，
+其中NetLimit的公式就是上面质押获取带宽的计算公式。通过这个公式实现24小时的质押带宽恢复。
+
+如果交易需要消耗质押带宽，当 `AvailableNetUsage >= NewCost `则可顺利消耗质押带宽，并设置新的
+`LastUsage = AvailableNetUsage - NewCost， LastUseTime = CurrentTime`。
 
 ### 5. 账户带宽余额查询
 
@@ -80,17 +121,56 @@ Bandwidth Points是一个账户1天内能够使用的总字节数。一定时间
 
 ### 1. Energy的获取与消耗
 
-质押获取Energy，即将持有的trx锁定，无法进行交易，作为抵押，并以此获得免费使用Energy的权利。具体计算与全网所有账户质押有关，可参考相关部分计算。
+质押获取Energy，即将持有的TRX锁定，无法进行交易，作为抵押，并以此获得免费使用Energy的权利。具体计算与全网所有账户质押有关，可参考下面计算逻辑。
 
 #### 质押获得能量
+
+通过调用接口[wallet/freezebalancev2](../api/http.md/#walletfreezebalancev2)，或下面Wallet-cli指令:
 
 ```text
 freezeBalanceV2 frozen_balance [ResourceCode:0 BANDWIDTH,1 ENERGY]
 ```
 
-通过质押TRX获取的Energy 额度 = 为获取Energy质押的TRX / 整个网络为获取Energy质押的TRX 总额 * 180_000_000_000。
+接口[wallet/getaccount](../api/http.md/#walletgetaccount)可以查询账户当前为获取Energy质押的TRX，示例返回：
+```
+{
+  "address": "TBEJewE3MWBbW9t7F4s875yvMHrhqBAZfB",
+  "balance": 26795494669,
+  "frozenV2": [
+        {
+            "amount": 1002000000 // Bandwith
+        },
+        {
+            "type": "ENERGY",
+            "amount": 20001000000
+        },
+        {
+            "type": "TRON_POWER"
+        }
+  ],
+  ... ...
+}
+```
 
-也就是所有用户按质押的TRX数量平分固定额度的Energy，示例：
+##### 质押获得的能量计算
+通过质押TRX获取的能量公式为：
+`Energy_Limit = 为获取Energy质押的TRX / TotalEnergyWeight * TotalEnergyLimit`
+。
+TotalEnergyWeight：整个网络为获取Energy质押的TRX总额
+其中Total_Energy_Limit = 180000000000，由#19号提议决定，后续数值变动可以查看[Network Parameters](https://tronscan.org/#/sr/committee)。
+也就是所有用户按质押的TRX数量平分固定额度的Energy。
+
+具体账户的能量数值，可以调用接口[wallet/getaccountresource](../api/http.md/#walletgetaccountresource)查看，示例返回：
+```
+{
+    ...
+    "EnergyLimit": 1459402, // Dynamic changed as TotalEnergyWeight changes
+    "TotalEnergyLimit": 180000000000, // Static value follow propsal #19
+    "TotalEnergyWeight": 2466887064
+}
+```
+
+账户获得的Energy Limit是会动态调整的，示例：
 
 ```text
 如全网只有两个人A，B分别质押2TRX，2TRX。
@@ -127,6 +207,12 @@ B: 30_000_000_000 且energy_limit 为36_000_000_000
 #### 能量的恢复
 
 账户的能量资源消耗后，会在24小时内逐步恢复。
+
+其中每次计算质押剩余可用能量的等价公式为：
+
+`EnergyLimit - LastUsage * (CurrentTime - LastUseTime) / RecoveryWindow(24h)`
+当 `CurrentTime - LastUseTime >= 24h` 时 `Account_Left_Energy = EnergyLimit`，
+其中EnergyLimit的公式就是上面质押获取EnergyLimit的计算公式。通过这个公式实现24小时的质押能量恢复。
 
 #### 账户能量余额查询
 
